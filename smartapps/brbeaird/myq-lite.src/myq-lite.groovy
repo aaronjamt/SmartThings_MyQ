@@ -741,14 +741,14 @@ def createChilDevices(door, sensor, doorName, prefPushButtons){
 
         //Create action switch devices
         if (prefPushButtons){
-        	def existingOpenButtonDev = getChildDevice(door + " Opener")
-            def existingCloseButtonDev = getChildDevice(door + " Closer")
+            def existingButtonDev = getChildDevice(door + " Opener")
             if (!existingOpenButtonDev){
                 try{
-                	def openButton = addChildDevice("brbeaird", "MyQ Action Switch", door + " Opener", getHubID(), [name: doorName + " Opener", label: doorName + " Opener"])
+                    def openButton = addChildDevice("brbeaird", "MyQ Action Switch", door + " Opener", getHubID(), [name: doorName + " Opener", label: doorName + " Opener"])
                     openButton.off()
-                	state.installMsg = state.installMsg + doorName + ": created open action switch device. \r\n\r\n"
-                	subscribe(openButton, "switch.on", doorButtonOpenHandler)
+                    state.installMsg = state.installMsg + doorName + ": created action switch device. \r\n\r\n"
+                    subscribe(openButton, "switch.on", doorButtonOpenHandler)
+                    subscribe(openButton, "switch.off", doorButtonCloseHandler)
                 }
                 catch(physicalgraph.app.exception.UnknownDeviceTypeException e)
                 {
@@ -758,37 +758,17 @@ def createChilDevices(door, sensor, doorName, prefPushButtons){
             }
             else{
             	log.debug "Switch needs updating to new Action Type version"
-                existingOpenButtonDev.deviceType = "MyQ Action Switch"
-                subscribe(existingOpenButtonDev, "switch.on", doorButtonOpenHandler)
-                state.installMsg = state.installMsg + doorName + ": Open action switch device already exists. Subscription recreated. \r\n\r\n"
-                log.debug "subscribed to button: " + existingOpenButtonDev
-            }
-
-            if (!existingCloseButtonDev){
-                try{
-                    def closeButton = addChildDevice("brbeaird", "MyQ Action Switch", door + " Closer", getHubID(), [name: doorName + " Closer", label: doorName + " Closer"])
-                    closeButton.off()
-                    state.installMsg = state.installMsg + doorName + ": created close action switch device. \r\n\r\n"
-                    subscribe(closeButton, "switch.on", doorButtonCloseHandler)
-                }
-                catch(physicalgraph.app.exception.UnknownDeviceTypeException e)
-                {
-                    log.debug "Error! " + e
-                }
-            }
-            else{
-                log.debug "Switch needs updating to new Action Type version"
-                existingCloseButtonDev.deviceType = "MyQ Action Switch"
-                subscribe(existingCloseButtonDev, "switch.on", doorButtonCloseHandler)
-                state.installMsg = state.installMsg + doorName + ": Close action switch device already exists. Subscription recreated. \r\n\r\n"
-                log.debug "subscribed to button: " + existingOpenButtonDev
+                existingButtonDev.deviceType = "MyQ Action Switch"
+                subscribe(existingButtonDev, "switch.on", doorButtonOpenHandler)
+                subscribe(existingButtonDev, "switch.off", doorButtonCloseHandler)
+                state.installMsg = state.installMsg + doorName + ": Action switch device already exists. Subscription recreated. \r\n\r\n"
+                log.debug "subscribed to button: " + existingButtonDev
             }
         }
 
         //Cleanup defunct action switch devices if no longer wanted
         else{
-        	def pushButtonIDs = [door + " Opener", door + " Closer"]
-            def devsToDelete = getChildDevices().findAll { pushButtonIDs.contains(it.deviceNetworkId)}
+            def devsToDelete = getChildDevices().findAll { it.deviceNetworkId == door + " Opener" }
             log.debug "button devices to delete: " + devsToDelete
 			devsToDelete.each{
             	log.debug "deleting button: " + it
@@ -908,9 +888,9 @@ def doorButtonOpenHandler(evt) {
 
 def doorButtonCloseHandler(evt) {
 	try{
-		log.debug "Door close button push detected: Event name  " + evt.name + " value: " + evt.value   + " deviceID: " + evt.deviceId + " DNI: " + evt.getDevice().deviceNetworkId
+	log.debug "Door close button push detected: Event name  " + evt.name + " value: " + evt.value   + " deviceID: " + evt.deviceId + " DNI: " + evt.getDevice().deviceNetworkId
         evt.getDevice().off()
-        def myQDeviceId = evt.getDevice().deviceNetworkId.replace(" Closer", "")
+        def myQDeviceId = evt.getDevice().deviceNetworkId.replace(" Opener", "")
         def doorDevice = getChildDevice(state.data[myQDeviceId].child)
         doorDevice.close()
 	}catch(e){
